@@ -41,26 +41,44 @@ def parse(elf_path):
             die_info_rec(top_DIE, CU, dwarf)
 
 
+def get_type(die):
+    try:
+        dw_at_type = die.get_DIE_from_attribute('DW_AT_type')
+        if dw_at_type.tag == "DW_TAG_const_type":
+            return "const"  # TODO: append to type instead as some types are evaporating
+    except KeyError:
+        try:
+            return die.attributes['DW_AT_name'].value
+        except KeyError:
+            return die.attributes['DW_AT_byte_size'].name  # void*
+    try:
+        return dw_at_type.attributes['DW_AT_name'].value
+    except KeyError:
+        try:
+            return get_type(dw_at_type)
+        except:
+            print("really bad")
+
+
 def die_info_rec(die, CU, dwarf, indent_level='    '):
     """ A recursive function for showing information about a DIE and its
         children.
     """
     if die.tag in ["DW_TAG_subprogram", "DW_TAG_formal_parameter"]:
-        out = f"{indent_level} + 'DIE tag={die.tag}"
         try:
-            out = f"{out}: {die.attributes['DW_AT_name'].value.decode('utf-8')}"
+            out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
         except KeyError:
-            out = f"{out}: DW_AT_name not found"
+            out = f"DW_AT_name not found"
         try:
             offset_to_find = die.attributes['DW_AT_type'].value
-            out = f"{out}: {offset_to_find}"
             try:
                 print(
-                    f"{out}: HUGE DIE: {dwarf.get_DIE_from_refaddr(offset_to_find).attributes['DW_AT_name'].value}")
-            except:
-                print(f"{out} get_DIE_from_refaddr failed")
+                    f"{indent_level}{get_type(die)} {out}")
+            except Exception as e:
+                print(
+                    f"{indent_level}{out} get_DIE_from_refaddr failed {e}: {offset_to_find}: {die.get_DIE_from_attribute('DW_AT_type')}")  # TODO: to be removed
         except KeyError:
-            print(f"{out}: DW_AT_type not found")
+            print(f"{indent_level}void {out}")
     child_indent = indent_level + '  '
     for child in die.iter_children():
         die_info_rec(child, CU, dwarf, child_indent)
