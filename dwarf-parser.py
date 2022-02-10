@@ -41,21 +41,25 @@ def parse(elf_path):
             die_info_rec(top_DIE, CU, dwarf)
 
 
-def get_type(die):
+def get_type(die, name=""):
     try:
         dw_at_type = die.get_DIE_from_attribute('DW_AT_type')
         if dw_at_type.tag == "DW_TAG_const_type":
-            return "const"  # TODO: append to type instead as some types are evaporating
+            name = " const" + name
+        if dw_at_type.tag == "DW_TAG_volatile_type":
+            name = " volatile" + name
+        if dw_at_type.tag == "DW_TAG_pointer_type":
+            name = name + "*"
     except KeyError:
         try:
-            return die.attributes['DW_AT_name'].value
+            return f"{die.attributes['DW_AT_name'].value}{name}"
         except KeyError:
-            return die.attributes['DW_AT_byte_size'].name  # void*
+            return f"void{name}"
     try:
-        return dw_at_type.attributes['DW_AT_name'].value
+        return f"{dw_at_type.attributes['DW_AT_name'].value}{name}"
     except KeyError:
         try:
-            return get_type(dw_at_type)
+            return get_type(dw_at_type, name)
         except:
             print("really bad")
 
@@ -64,21 +68,33 @@ def die_info_rec(die, CU, dwarf, indent_level='    '):
     """ A recursive function for showing information about a DIE and its
         children.
     """
+    if die.tag == "DW_TAG_inlined_subroutine":
+        die = die.get_DIE_from_attribute('DW_AT_abstract_origin')
     if die.tag in ["DW_TAG_subprogram", "DW_TAG_formal_parameter"]:
         try:
             out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
         except KeyError:
-            out = f"DW_AT_name not found"
-        try:
-            offset_to_find = die.attributes['DW_AT_type'].value
             try:
-                print(
-                    f"{indent_level}{get_type(die)} {out}")
+                die = die.get_DIE_from_attribute('DW_AT_abstract_origin')
+                out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
+            except KeyError:
+                out = ""  # unnamed parameter
+        try:
+            try:
+                out = f"{get_type(die)} {out}"
             except Exception as e:
-                print(
-                    f"{indent_level}{out} get_DIE_from_refaddr failed {e}: {offset_to_find}: {die.get_DIE_from_attribute('DW_AT_type')}")  # TODO: to be removed
+                out = f"{out} get_DIE_from_refaddr failed {e}: {die.get_DIE_from_attribute('DW_AT_type')}"  # TODO: to be removed
         except KeyError:
-            print(f"{indent_level}void {out}")
+            out = f"void {out}"
+    try:
+        x = die.attributes["DW_AT_inline"]
+        out = f"inline {out}"
+    except KeyError:
+        pass
+    try:
+        print(f"{indent_level}{out}")
+    except UnboundLocalError:
+        pass
     child_indent = indent_level + '  '
     for child in die.iter_children():
         die_info_rec(child, CU, dwarf, child_indent)
