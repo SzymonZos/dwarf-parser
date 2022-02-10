@@ -20,25 +20,26 @@ class ElfFile(ELFFile):
 
 def parse(elf_path):
     elf = ElfFile(elf_path)
-    if elf.has_dwarf_info():
-        dwarf = elf.get_dwarf_info()
-        for CU in dwarf.iter_CUs():
-            # DWARFInfo allows to iterate over the compile units contained in
-            # the .debug_info section. CU is a CompileUnit object, with some
-            # computed attributes (such as its offset in the section) and
-            # a header which conforms to the DWARF standard. The access to
-            # header elements is, as usual, via item-lookup.
-            print(
-                f"  Found a compile unit at offset {CU.cu_offset}, length {CU['unit_length']}")
+    if not elf.has_dwarf_info():
+        return
+    dwarf = elf.get_dwarf_info()
+    for CU in dwarf.iter_CUs():
+        # DWARFInfo allows to iterate over the compile units contained in
+        # the .debug_info section. CU is a CompileUnit object, with some
+        # computed attributes (such as its offset in the section) and
+        # a header which conforms to the DWARF standard. The access to
+        # header elements is, as usual, via item-lookup.
+        print(
+            f"  Found a compile unit at offset {CU.cu_offset}, length {CU['unit_length']}")
 
-            # Start with the top DIE, the root for this CU's DIE tree
-            top_DIE = CU.get_top_DIE()
-            print(f"    Top DIE with tag={top_DIE.tag}")
+        # Start with the top DIE, the root for this CU's DIE tree
+        top_DIE = CU.get_top_DIE()
+        print(f"    Top DIE with tag={top_DIE.tag}")
 
-            print(f"    name={top_DIE.get_full_path()}")
+        print(f"    name={top_DIE.get_full_path()}")
 
-            # Display DIEs recursively starting with top_DIE
-            die_info_rec(top_DIE, CU, dwarf)
+        # Display DIEs recursively starting with top_DIE
+        die_info_rec(top_DIE)
 
 
 def get_type(die, name=""):
@@ -51,10 +52,7 @@ def get_type(die, name=""):
         if dw_at_type.tag == "DW_TAG_pointer_type":
             name = name + "*"
     except KeyError:
-        try:
-            return f"{die.attributes['DW_AT_name'].value}{name}"
-        except KeyError:
-            return f"void{name}"
+        return f"void{name}"
     try:
         return f"{dw_at_type.attributes['DW_AT_name'].value}{name}"
     except KeyError:
@@ -64,40 +62,41 @@ def get_type(die, name=""):
             print("really bad")
 
 
-def die_info_rec(die, CU, dwarf, indent_level='    '):
+def inline(die):
+    if "DW_AT_inline" in die.attributes:
+        return "inline"
+    return ""
+
+
+def process(die):
+    try:
+        out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
+    except KeyError:
+        try:
+            die = die.get_DIE_from_attribute('DW_AT_abstract_origin')
+            out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
+        except KeyError:
+            out = ""  # unnamed parameter, probably in function pointer
+    out = f"{inline(die)} {get_type(die)} {out}"
+    return out
+
+
+def die_info_rec(die, indent_level='    '):
     """ A recursive function for showing information about a DIE and its
         children.
     """
     if die.tag == "DW_TAG_inlined_subroutine":
         die = die.get_DIE_from_attribute('DW_AT_abstract_origin')
-    if die.tag in ["DW_TAG_subprogram", "DW_TAG_formal_parameter"]:
-        try:
-            out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
-        except KeyError:
-            try:
-                die = die.get_DIE_from_attribute('DW_AT_abstract_origin')
-                out = f"{die.attributes['DW_AT_name'].value.decode('utf-8')}"
-            except KeyError:
-                out = ""  # unnamed parameter
-        try:
-            try:
-                out = f"{get_type(die)} {out}"
-            except Exception as e:
-                out = f"{out} get_DIE_from_refaddr failed {e}: {die.get_DIE_from_attribute('DW_AT_type')}"  # TODO: to be removed
-        except KeyError:
-            out = f"void {out}"
-    try:
-        x = die.attributes["DW_AT_inline"]
-        out = f"inline {out}"
-    except KeyError:
-        pass
-    try:
+    # if die.tag == "DW_TAG_entry_point":
+    if die.tag in ["DW_TAG_subprogram", "DW_TAG_formal_parameter",
+                   "DW_TAG_subroutine_type"]:
+        out = process(die)
         print(f"{indent_level}{out}")
-    except UnboundLocalError:
-        pass
+
     child_indent = indent_level + '  '
+    # print(f"{indent_level} {die.tag}")
     for child in die.iter_children():
-        die_info_rec(child, CU, dwarf, child_indent)
+        die_info_rec(child, child_indent)
 
 
 def main():
