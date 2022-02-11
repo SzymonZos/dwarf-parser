@@ -1,4 +1,5 @@
 import atexit
+import re
 
 from argparse import ArgumentParser
 from elftools.elf.elffile import ELFFile
@@ -66,22 +67,32 @@ def get_die_from_attribute(die, attribute):
         raise NoAttributeInDie(die)
 
 
-def get_type(die, name=""):
+CVR_TYPE_QUALIFIERS_TAGS = [
+    "DW_TAG_restrict_type",
+    "DW_TAG_const_type",
+    "DW_TAG_volatile_type"
+]
+
+
+def get_type_qualifier(tag):
+    return re.search(R"(?<=W_TAG_).+(?=_type)", tag).group()
+
+
+def get_type(die, name="", temp=""):
     try:
-        dw_at_type = get_die_from_attribute(die, 'DW_AT_type')
-        if dw_at_type.tag == "DW_TAG_const_type":
-            name = " const" + name
-        if dw_at_type.tag == "DW_TAG_volatile_type":
-            name = " volatile" + name
-        if dw_at_type.tag == "DW_TAG_pointer_type":
-            name = name + "*"
+        at_type = get_die_from_attribute(die, 'DW_AT_type')
+        if at_type.tag in CVR_TYPE_QUALIFIERS_TAGS:
+            temp = " " + get_type_qualifier(at_type.tag) + temp
+        if at_type.tag == "DW_TAG_pointer_type":
+            name = "*" + temp + name
+            temp = ""
     except NoAttributeInDie:
-        return f"void{name}"
+        return "void" + temp + name
     try:
-        return f"{get_attribute_value(dw_at_type, 'DW_AT_name')}{name}"
+        return get_attribute_value(at_type, 'DW_AT_name') + temp + name
     except NoAttributeInDie:
         try:
-            return get_type(dw_at_type, name)
+            return get_type(at_type, name, temp)
         except Exception:
             print("Should really not end up here")
 
