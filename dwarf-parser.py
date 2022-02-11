@@ -73,9 +73,21 @@ CVR_TYPE_QUALIFIERS_TAGS = [
     "DW_TAG_volatile_type"
 ]
 
+SPECIAL_TYPE_DECLARATIONS = {
+    "DW_TAG_structure_type": "struct",
+    "DW_TAG_union_type": "union",
+    "DW_TAG_enumeration_type": "enum"
+}
+
 
 def get_type_qualifier(tag):
     return re.search(R"(?<=W_TAG_).+(?=_type)", tag).group()
+
+
+def is_special_type(die):
+    if die.tag in SPECIAL_TYPE_DECLARATIONS:
+        return SPECIAL_TYPE_DECLARATIONS[die.tag]
+    return ""
 
 
 def get_type(die, name="", temp=""):
@@ -89,7 +101,8 @@ def get_type(die, name="", temp=""):
     except NoAttributeInDie:
         return "void" + temp + name
     try:
-        return get_attribute_value(at_type, 'DW_AT_name') + temp + name
+        return is_special_type(at_type) + " " + \
+               get_attribute_value(at_type, 'DW_AT_name') + temp + name
     except NoAttributeInDie:
         try:
             return get_type(at_type, name, temp)
@@ -126,7 +139,7 @@ def die_info_rec(die, indent_level='    '):
     if die.tag == "DW_TAG_subroutine_type":
         return
     if die.tag == "DW_TAG_inlined_subroutine":
-        die = die.get_DIE_from_attribute('DW_AT_abstract_origin')
+        die = get_die_from_attribute(die, 'DW_AT_abstract_origin')
     # I guess there is no need to support "DW_TAG_entry_point" for now
     if die.tag in ["DW_TAG_subprogram", "DW_TAG_formal_parameter"]:
         print(f"{indent_level}{process(die)}")
