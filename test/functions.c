@@ -10,6 +10,4 @@ void fft(const unsigned char * volatile p) {}
 
 void* alloc(void) {}
 
-int main(void) {
-    return 0;
-}
+int main(void) { return 0; }
