@@ -4,7 +4,7 @@ import pytest
 from typing import Dict
 from pathlib import Path
 
-from dwarf_parser import parse
+from src.dwarf_parser import DwarfParser
 from .cdecl import explain_c_declaration
 
 
@@ -28,7 +28,7 @@ def get_parsed_prototypes(prototypes: Dict[str, str]):
 
 def get_all_test_suits():
     ref = get_reference_prototypes()
-    out = get_parsed_prototypes(parse(Path("functions")))
+    out = get_parsed_prototypes(DwarfParser(Path("functions")).parse())
     return [(r, o) for r, o in zip(ref, out)]
 
 
