@@ -26,7 +26,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 pytest pylint
           pip install -r requirements.txt
 
       - name: Lint with flake8
@@ -41,5 +40,7 @@ jobs:
         continue-on-error: true
         run: git ls-files *.py | xargs pylint
 
-      - name: Test with pytest
-        run: pytest
+      - name: Acceptance tests with pytest
+        run: |
+          gcc -g -gdwarf ./test/functions.c -o ./test/functions
+          pytest -s ./test/test.py
