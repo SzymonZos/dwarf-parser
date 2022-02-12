@@ -1,8 +1,29 @@
 import atexit
 import re
-
+import logging
+from typing import Dict, Optional
 from argparse import ArgumentParser
+
 from elftools.elf.elffile import ELFFile
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+_prototypes = dict()
+_current_function = ""
+
+CVR_TYPE_QUALIFIERS_TAGS = [
+    "DW_TAG_restrict_type",
+    "DW_TAG_const_type",
+    "DW_TAG_volatile_type"
+]
+
+SPECIAL_TYPE_DECLARATIONS = {
+    "DW_TAG_structure_type": "struct",
+    "DW_TAG_union_type": "union",
+    "DW_TAG_enumeration_type": "enum"
+}
 
 
 def create_parser():
@@ -29,28 +50,19 @@ class NoAttributeInDie(Exception):
         return f"{self._message}\n{self._die}"
 
 
-def parse(elf_path):
+def parse(elf_path) -> Optional[Dict[str, str]]:
     elf = ElfFile(elf_path)
     if not elf.has_dwarf_info():
-        return
+        return None
     dwarf = elf.get_dwarf_info()
-    for CU in dwarf.iter_CUs():
-        # DWARFInfo allows to iterate over the compile units contained in
-        # the .debug_info section. CU is a CompileUnit object, with some
-        # computed attributes (such as its offset in the section) and
-        # a header which conforms to the DWARF standard. The access to
-        # header elements is, as usual, via item-lookup.
-        print(f"  Found a compile unit at offset {CU.cu_offset},"
-              f" length {CU['unit_length']}")
-
-        # Start with the top DIE, the root for this CU's DIE tree
-        top_die = CU.get_top_DIE()
-        print(f"    Top DIE with tag={top_die.tag}")
-
-        print(f"    name={top_die.get_full_path()}")
-
-        # Display DIEs recursively starting with top_DIE
+    for cu in dwarf.iter_CUs():
+        logger.debug(f"Found a compile unit at offset {cu.cu_offset}, "
+                     f"length {cu['unit_length']}")
+        top_die = cu.get_top_DIE()
+        logger.debug(f"Top DIE with tag={top_die.tag}, "
+                     f"name={top_die.get_full_path()}")
         die_info_rec(top_die)
+    return _prototypes
 
 
 def get_attribute_value(die, attribute):
@@ -67,26 +79,13 @@ def get_die_from_attribute(die, attribute):
         raise NoAttributeInDie(die)
 
 
-CVR_TYPE_QUALIFIERS_TAGS = [
-    "DW_TAG_restrict_type",
-    "DW_TAG_const_type",
-    "DW_TAG_volatile_type"
-]
-
-SPECIAL_TYPE_DECLARATIONS = {
-    "DW_TAG_structure_type": "struct",
-    "DW_TAG_union_type": "union",
-    "DW_TAG_enumeration_type": "enum"
-}
-
-
 def get_type_qualifier(tag):
     return re.search(R"(?<=W_TAG_).+(?=_type)", tag).group()
 
 
 def is_special_type(die):
     if die.tag in SPECIAL_TYPE_DECLARATIONS:
-        return SPECIAL_TYPE_DECLARATIONS[die.tag]
+        return SPECIAL_TYPE_DECLARATIONS[die.tag] + " "
     return ""
 
 
@@ -101,18 +100,20 @@ def get_type(die, name="", temp=""):
     except NoAttributeInDie:
         return "void" + temp + name
     try:
-        return is_special_type(at_type) + " " + \
+        return is_special_type(at_type) + \
                get_attribute_value(at_type, 'DW_AT_name') + temp + name
     except NoAttributeInDie:
         try:
             return get_type(at_type, name, temp)
         except Exception:
-            print("Should really not end up here")
+            logging.error(f"Should really not end up here", exc_info=True)
 
 
+# In C one cannot just `inline` function like in C++
+# Instead, one should proceed with `static inline`
 def is_inline(die):
     if "DW_AT_inline" in die.attributes:
-        return "inline"
+        return "static inline "
     return ""
 
 
@@ -128,31 +129,45 @@ def get_name(die):
 
 
 def process(die):
-    return f"{is_inline(die)} {get_type(die)} {get_name(die)}"
+    return f"{is_inline(die)}{get_type(die)} {get_name(die)}"
 
 
-def die_info_rec(die, indent_level='    '):
-    """ A recursive function for showing information about a DIE and its
-        children.
-    """
+def process_function(die):
+    global _current_function
+    _current_function = process(die)
+    _prototypes[_current_function] = "void"
+
+
+def process_arguments(die):
+    _prototypes[_current_function] = process(die)
+
+
+def die_info_rec(die):
     # We are interested only in prototypes, not function pointers
     if die.tag == "DW_TAG_subroutine_type":
         return
+
+    # inlined subroutine should be checked separately:
+    # http://lists.dwarfstd.org/pipermail/dwarf-discuss-dwarfstd.org/2020-July/004686.html
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=37801
     if die.tag == "DW_TAG_inlined_subroutine":
         die = get_die_from_attribute(die, 'DW_AT_abstract_origin')
-    # I guess there is no need to support "DW_TAG_entry_point" for now
-    if die.tag in ["DW_TAG_subprogram", "DW_TAG_formal_parameter"]:
-        print(f"{indent_level}{process(die)}")
 
-    child_indent = indent_level + '  '
-    # print(f"{indent_level} {die.tag}")
+    # There is no need to support "DW_TAG_entry_point" for now
+    if die.tag == "DW_TAG_subprogram":
+        process_function(die)
+    if die.tag == "DW_TAG_formal_parameter":
+        process_arguments(die)
+
     for child in die.iter_children():
-        die_info_rec(child, child_indent)
+        die_info_rec(child)
 
 
 def main():
     args = create_parser().parse_args()
-    parse(args.elf)
+    if prototypes := parse(args.elf):
+        for function, arguments in prototypes.items():
+            print(f"{function}({arguments})")
 
 
 if __name__ == '__main__':
