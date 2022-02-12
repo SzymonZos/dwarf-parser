@@ -40,8 +40,8 @@ def parse(elf_path):
         # computed attributes (such as its offset in the section) and
         # a header which conforms to the DWARF standard. The access to
         # header elements is, as usual, via item-lookup.
-        print(
-            f"  Found a compile unit at offset {CU.cu_offset}, length {CU['unit_length']}")
+        print(f"  Found a compile unit at offset {CU.cu_offset},"
+              f" length {CU['unit_length']}")
 
         # Start with the top DIE, the root for this CU's DIE tree
         top_die = CU.get_top_DIE()
