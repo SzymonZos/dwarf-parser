@@ -2,9 +2,10 @@ import atexit
 import re
 import logging
 from typing import Dict, Optional
-from argparse import ArgumentParser
 
 from elftools.elf.elffile import ELFFile
+
+from src.argument_parser import create_parser
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -24,13 +25,6 @@ SPECIAL_TYPE_DECLARATIONS = {
     "DW_TAG_union_type": "union",
     "DW_TAG_enumeration_type": "enum"
 }
-
-
-def create_parser():
-    parser = ArgumentParser(description="extract dwarf info")
-    parser.add_argument("-e", "--elf", type=str, action="store",
-                        help="Select elf file")
-    return parser
 
 
 class ElfFile(ELFFile):

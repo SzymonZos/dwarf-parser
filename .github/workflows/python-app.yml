@@ -40,8 +40,11 @@ jobs:
         continue-on-error: true
         run: git ls-files *.py | xargs pylint
 
+      - name: Unit tests with unittest
+        run: python -m unittest discover --start-directory ./test --pattern "test_*.py"
+
       - name: Acceptance tests with pytest
         run: |
           cd test
           gcc -g -gdwarf ./functions.c -o ./functions
-          pytest -s ./test.py
+          pytest -s ./pytest_dwarf_parser.py
