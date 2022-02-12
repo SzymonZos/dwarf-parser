@@ -5,6 +5,7 @@ from typing import Dict
 from pathlib import Path
 
 from dwarf_parser import parse
+from .cdecl import explain_c_declaration
 
 
 def get_ref_prototype(line: str):
@@ -40,4 +41,4 @@ def dwarf_fixture(request):
 @pytest.mark.parametrize("dwarf_fixture", get_all_test_suits(), indirect=True)
 def test_dwarf(dwarf_fixture):
     ref, out = dwarf_fixture
-    assert ref == out
+    assert explain_c_declaration(ref) == explain_c_declaration(out)

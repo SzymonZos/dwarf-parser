@@ -12,6 +12,7 @@ platformdirs==2.5.0
 pluggy==1.0.0
 py==1.11.0
 pycodestyle==2.8.0
+pycparser==2.21
 pyelftools==0.28
 pyflakes==2.4.0
 pylint==2.12.2
