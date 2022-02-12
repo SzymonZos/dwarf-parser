@@ -1,11 +1,9 @@
-import atexit
 import re
 import logging
 from typing import Dict, Optional
 
-from elftools.elf.elffile import ELFFile
-
 from src.argument_parser import create_parser
+from src.utils import ElfFile, NoAttributeInDie
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -25,23 +23,6 @@ SPECIAL_TYPE_DECLARATIONS = {
     "DW_TAG_union_type": "union",
     "DW_TAG_enumeration_type": "enum"
 }
-
-
-class ElfFile(ELFFile):
-    def __init__(self, path):
-        self._fd = open(path, 'rb')
-        super().__init__(self._fd)
-        atexit.register(lambda: self._fd.close())
-
-
-class NoAttributeInDie(Exception):
-    def __init__(self, die, message=""):
-        self._message = message
-        self._die = die
-        super().__init__(self._message)
-
-    def __str__(self):
-        return f"{self._message}\n{self._die}"
 
 
 def parse(elf_path) -> Optional[Dict[str, str]]:
