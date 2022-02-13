@@ -1,5 +1,6 @@
 import re
 import logging
+from typing import Optional
 
 from elftools.dwarf.die import DIE
 
@@ -17,14 +18,14 @@ class Die:
     def get_attribute_value(self, attribute: str) -> str:
         try:
             return self._die.attributes[attribute].value.decode('utf-8')
-        except KeyError:
-            raise NoAttributeInDie(self)
+        except KeyError as e:
+            raise NoAttributeInDie(self) from e
 
     def get_die_from_attribute(self, attribute: str) -> 'Die':
         try:
             return Die(self._die.get_DIE_from_attribute(attribute))
-        except KeyError:
-            raise NoAttributeInDie(self)
+        except KeyError as e:
+            raise NoAttributeInDie(self) from e
 
     # In C one cannot just `inline` function like in C++
     # Instead, one should proceed with `static inline`
@@ -58,7 +59,7 @@ class Type:
         "DW_TAG_enumeration_type": "enum"
     }
 
-    def get(self) -> str:
+    def get(self) -> Optional[str]:
         try:
             self._die = self._die.get_die_from_attribute('DW_AT_type')
             if self._die.tag in Type._CVR_QUALIFIERS_TAGS:
@@ -77,7 +78,8 @@ class Type:
             try:
                 return self.get()
             except Exception:
-                logging.error(f"Should really not end up here", exc_info=True)
+                logger.error("Should really not end up here", exc_info=True)
+                return None
 
     @staticmethod
     def _get_qualifier(tag: str) -> str:

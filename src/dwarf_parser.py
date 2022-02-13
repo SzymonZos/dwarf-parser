@@ -21,11 +21,11 @@ class DwarfParser:
             return None
 
         for cu in dwarf.iter_CUs():
-            logger.debug(f"Found a compile unit at offset {cu.cu_offset}, "
-                         f"length {cu['unit_length']}")
+            logger.debug("Found a compile unit at offset %d, length %d",
+                         cu.cu_offset, cu['unit_length'])
             top_die = Die(cu.get_top_DIE())
-            logger.debug(f"Top DIE with tag={top_die.tag}, "
-                         f"name={top_die.get_full_path()}")
+            logger.debug("Top DIE with tag=%s name=%s",
+                         top_die.tag, top_die.get_full_path())
             DieManager(top_die, self._prototypes).recursively_traverse_dies()
         return self._prototypes
 

@@ -1,7 +1,6 @@
+from pathlib import Path
 import re
 import pytest
-
-from pathlib import Path
 
 from src.dwarf_parser import DwarfParser
 from .cdecl import explain_c_declaration
@@ -18,8 +17,8 @@ def get_ref_prototype(line: str):
 
 def get_reference_prototypes():
     with Path("test/functions.c").open("r") as ref:
-        return reversed(
-            [x for line in ref if (x := get_ref_prototype(line)) is not None])
+        return reversed([prototype for line in ref if
+                         (prototype := get_ref_prototype(line)) is not None])
 
 
 def get_all_test_suits():
