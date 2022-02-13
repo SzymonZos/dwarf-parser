@@ -3,6 +3,7 @@ from typing import Dict, Optional, Union
 from pathlib import Path
 
 from elftools.dwarf.dwarfinfo import DWARFInfo
+from elftools.common.exceptions import ELFError
 
 from .utils import ElfFile, Prototypes
 from .die import DieManager, Die
@@ -30,7 +31,10 @@ class DwarfParser:
         return self._prototypes
 
     def _get_dwarf_info(self) -> Optional[DWARFInfo]:
-        elf = ElfFile(self._elf_path)
-        if elf.has_dwarf_info():
-            return elf.get_dwarf_info()
+        try:
+            elf = ElfFile(self._elf_path)
+            if elf.has_dwarf_info():
+                return elf.get_dwarf_info()
+        except ELFError:
+            logger.error("Couldn't open elf file", exc_info=True)
         return None

@@ -28,13 +28,24 @@ class NoPrototypesDetectedTest(unittest.TestCase):
 
 
 class PrototypesDetectedTest(unittest.TestCase):
+    def setUp(self):
+        self.prototypes = Prototypes()
+        self.prototypes["int main"] = "void"
+        self.prototypes["const char* foo"] = "size_t size"
+
+
+class AllDictionary(PrototypesDetectedTest):
     def test_prototypes(self):
-        prototypes = Prototypes()
-        prototypes["int main"] = "void"
-        prototypes["const char* foo"] = "size_t size"
         expected = "int main(void)\n" \
                    "const char* foo(size_t size)"
-        self.assertEqual(expected, str(prototypes))
+        self.assertEqual(expected, str(self.prototypes))
+
+
+class SingleEntry(PrototypesDetectedTest):
+    def test_prototypes(self):
+        entry = "const char* foo"
+        expected = f"{entry}(size_t size)"
+        self.assertEqual(expected, self.prototypes.entry_to_str(entry))
 
 
 if __name__ == '__main__':
