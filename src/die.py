@@ -45,7 +45,7 @@ class Type:
     def __init__(self, die: Die):
         self._die = die
         self._name = ""
-        self._temp = ""
+        self._qualifiers = ""
 
     _CVR_QUALIFIERS_TAGS = [
         "DW_TAG_restrict_type",
@@ -62,18 +62,18 @@ class Type:
     def get(self) -> Optional[str]:
         try:
             self._die = self._die.get_die_from_attribute('DW_AT_type')
-            if self._die.tag in Type._CVR_QUALIFIERS_TAGS:
-                self._temp = " " + self._get_qualifier(
-                    self._die.tag) + self._temp
-            if self._die.tag == "DW_TAG_pointer_type":
-                self._name = "*" + self._temp + self._name
-                self._temp = ""
         except NoAttributeInDie:
-            return "void" + self._temp + self._name
+            return "void" + self._qualifiers + self._name
+
+        if self._die.tag in Type._CVR_QUALIFIERS_TAGS:
+            self._store_qualifiers()
+        if self._die.tag == "DW_TAG_pointer_type":
+            self._store_name()
+
         try:
-            return self.is_special_type() + \
-                   self._die.get_attribute_value(
-                       'DW_AT_name') + self._temp + self._name
+            return self._is_special_type() + \
+                   self._die.get_attribute_value('DW_AT_name') + \
+                   self._qualifiers + self._name
         except NoAttributeInDie:
             try:
                 return self.get()
@@ -85,7 +85,15 @@ class Type:
     def _get_qualifier(tag: str) -> str:
         return re.search(R"(?<=W_TAG_).+(?=_type)", tag).group()
 
-    def is_special_type(self) -> str:
+    def _store_name(self) -> None:
+        self._name = "*" + self._qualifiers + self._name
+        self._qualifiers = ""
+
+    def _store_qualifiers(self):
+        self._qualifiers = \
+            " " + self._get_qualifier(self._die.tag) + self._qualifiers
+
+    def _is_special_type(self) -> str:
         if self._die.tag in Type._SPECIAL_DECLARATIONS:
             return Type._SPECIAL_DECLARATIONS[self._die.tag] + " "
         return ""
@@ -99,12 +107,14 @@ class Name:
         try:
             return self._die.get_attribute_value('DW_AT_name')
         except NoAttributeInDie:
-            try:
-                self._die = self._die.get_die_from_attribute(
-                    'DW_AT_abstract_origin')
-                return self._die.get_attribute_value('DW_AT_name')
-            except NoAttributeInDie:
-                return ""  # unnamed parameter, probably in function pointer
+            return self._get_inline_name()
+
+    def _get_inline_name(self) -> str:
+        try:
+            die = self._die.get_die_from_attribute('DW_AT_abstract_origin')
+            return die.get_attribute_value('DW_AT_name')
+        except NoAttributeInDie:
+            return ""  # unnamed parameter, probably in function pointer
 
 
 class DieManager:
@@ -113,7 +123,7 @@ class DieManager:
         self._prototypes = prototypes
         self._current_function = ""
 
-    def recursively_traverse_dies(self):
+    def recursively_traverse_dies(self) -> None:
         die = self._die
         # We are interested only in prototypes, not function pointers
         if self._die.tag == "DW_TAG_subroutine_type":
@@ -135,14 +145,14 @@ class DieManager:
             self._die = Die(child)
             self.recursively_traverse_dies()
 
-    def _process(self):
+    def _process(self) -> str:
         return f"{self._die.is_inline()}" \
                f"{Type(self._die).get()} " \
                f"{Name(self._die).get()}"
 
-    def _process_function(self):
+    def _process_function(self) -> None:
         self._current_function = self._process()
         self._prototypes[self._current_function] = "void"
 
-    def _process_arguments(self):
+    def _process_arguments(self) -> None:
         self._prototypes[self._current_function] = self._process()
