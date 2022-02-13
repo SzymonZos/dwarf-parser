@@ -3,6 +3,13 @@ import atexit
 from elftools.elf.elffile import ELFFile
 
 
+class Prototypes(dict):
+    def __str__(self):
+        if self:
+            return "\n".join([f"{func}({arg})" for func, arg in self.items()])
+        return "No prototypes"
+
+
 class ElfFile(ELFFile):
     def __init__(self, path):
         self._fd = open(path, 'rb')

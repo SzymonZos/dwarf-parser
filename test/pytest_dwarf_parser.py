@@ -1,7 +1,6 @@
 import re
 import pytest
 
-from typing import Dict
 from pathlib import Path
 
 from src.dwarf_parser import DwarfParser
@@ -21,15 +20,10 @@ def get_reference_prototypes():
             [x for line in ref if (x := get_ref_prototype(line)) is not None])
 
 
-def get_parsed_prototypes(prototypes: Dict[str, str]):
-    return (f"{function}({arguments})"
-            for function, arguments in prototypes.items())
-
-
 def get_all_test_suits():
     ref = get_reference_prototypes()
-    out = get_parsed_prototypes(DwarfParser(Path("functions")).parse())
-    return [(r, o) for r, o in zip(ref, out)]
+    out = DwarfParser(Path("functions")).parse()
+    return ((r, o) for r, o in zip(ref, out))
 
 
 @pytest.fixture

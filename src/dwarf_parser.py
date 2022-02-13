@@ -4,18 +4,11 @@ from pathlib import Path
 
 from elftools.dwarf.dwarfinfo import DWARFInfo
 
-from .utils import ElfFile
+from .utils import ElfFile, Prototypes
 from .die import die_info_rec
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-class Prototypes(dict):
-    def __str__(self):
-        if self:
-            return "\n".join([f"{func}({arg})" for func, arg in self.items()])
-        return "No prototypes"
 
 
 class DwarfParser:
