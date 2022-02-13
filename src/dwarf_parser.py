@@ -5,7 +5,7 @@ from pathlib import Path
 from elftools.dwarf.dwarfinfo import DWARFInfo
 
 from .utils import ElfFile, Prototypes
-from .die import die_info_rec
+from .die import DieManager
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,7 +26,7 @@ class DwarfParser:
             top_die = cu.get_top_DIE()
             logger.debug(f"Top DIE with tag={top_die.tag}, "
                          f"name={top_die.get_full_path()}")
-            die_info_rec(top_die, self._prototypes)
+            DieManager(top_die, self._prototypes).recursively_traverse_dies()
         return self._prototypes
 
     def _get_dwarf_info(self) -> Optional[DWARFInfo]:
