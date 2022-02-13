@@ -45,6 +45,5 @@ jobs:
 
       - name: Acceptance tests with pytest
         run: |
-          cd test
-          gcc -g -gdwarf ./functions.c -o ./functions
-          pytest -s ./pytest_dwarf_parser.py
+          gcc -g -gdwarf ./test/functions.c -o ./test/functions
+          pytest -s ./test/pytest_dwarf_parser.py

@@ -8,6 +8,8 @@ from .cdecl import explain_c_declaration
 
 
 def get_ref_prototype(line: str):
+    if re.search(R"//", line):
+        return None
     try:
         return re.search(R".+\(.+(?= {)", line).group()
     except AttributeError:
@@ -15,15 +17,15 @@ def get_ref_prototype(line: str):
 
 
 def get_reference_prototypes():
-    with Path("functions.c").open("r") as ref:
+    with Path("test/functions.c").open("r") as ref:
         return reversed(
             [x for line in ref if (x := get_ref_prototype(line)) is not None])
 
 
 def get_all_test_suits():
     ref = get_reference_prototypes()
-    out = DwarfParser(Path("functions")).parse()
-    return ((r, o) for r, o in zip(ref, out))
+    out = DwarfParser(Path("test/functions")).parse()
+    return ((f"{r};", f"{out.entry_to_str(o)};") for r, o in zip(ref, out))
 
 
 @pytest.fixture

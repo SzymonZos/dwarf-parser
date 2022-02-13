@@ -1,4 +1,4 @@
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
 # pycparser: cdecl.py
 #
 # Example of the CDECL tool using pycparser. CDECL "explains" C type
@@ -31,7 +31,7 @@
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
 import copy
 import sys
 
@@ -62,8 +62,8 @@ def explain_c_declaration(c_decl, expand_struct=False, expand_typedef=False):
         return "Parse error:" + str(e)
 
     if (not isinstance(node, c_ast.FileAST) or
-        not isinstance(node.ext[-1], c_ast.Decl)
-        ):
+            not isinstance(node.ext[-1], c_ast.Decl)
+    ):
         return "Not a valid declaration"
 
     try:
@@ -120,8 +120,10 @@ def _explain_type(decl):
                 _explain_type(decl.type))
 
     elif typ == c_ast.Struct:
-        decls = [_explain_decl_node(mem_decl) for mem_decl in decl.decls]
-        members = ', '.join(decls)
+        members = None
+        if decl.decls:
+            decls = [_explain_decl_node(mem_decl) for mem_decl in decl.decls]
+            members = ', '.join(decls)
 
         return ('struct%s ' % (' ' + decl.name if decl.name else '') +
                 ('containing {%s}' % members if members else ''))
@@ -136,7 +138,8 @@ def expand_struct_typedef(cdecl, file_ast,
     return decl_copy
 
 
-def _expand_in_place(decl, file_ast, expand_struct=False, expand_typedef=False):
+def _expand_in_place(decl, file_ast, expand_struct=False,
+                     expand_typedef=False):
     """Recursively expand struct & typedef in place, throw RuntimeError if
        undeclared struct or typedef are used
     """
@@ -176,8 +179,8 @@ def _find_struct(name, file_ast):
     """
     for node in file_ast.ext:
         if (type(node) == c_ast.Decl and
-           type(node.type) == c_ast.Struct and
-           node.type.name == name):
+                type(node.type) == c_ast.Struct and
+                node.type.name == name):
             return node.type
 
 
@@ -191,7 +194,7 @@ def _find_typedef(name, file_ast):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        c_decl  = sys.argv[1]
+        c_decl = sys.argv[1]
     else:
         c_decl = "char *(*(**foo[][8])())[];"
 
